@@ -1,5 +1,10 @@
+import javax.swing.*;
+
 public class StudentManagementSystem {
     public static void main(String[] args) {
-        System.out.println("Hello, World!");
+        SwingUtilities.invokeLater(() -> {
+            StudentManagementGUI gui = new StudentManagementGUI();
+            gui.setVisible(true);
+        });
     }
 }
