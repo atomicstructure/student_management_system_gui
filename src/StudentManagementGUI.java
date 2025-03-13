@@ -9,8 +9,7 @@ public class StudentManagementGUI extends JFrame {
     private JTextArea outputArea;
     private JComboBox<String> studentComboBox;
     private JComboBox<String> courseComboBox;
-    private JTable studentTable;
-    private JTable courseTable;
+    private JTable studentDetailsTable;
 
     public StudentManagementGUI() {
         dataStorage = new DataStorage();
@@ -19,7 +18,7 @@ public class StudentManagementGUI extends JFrame {
 
     private void initializeUI() {
         setTitle("Student Management System");
-        setSize(1000, 800);
+        setSize(1200, 800); // Increased width to accommodate more columns
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -34,14 +33,14 @@ public class StudentManagementGUI extends JFrame {
 
         JButton addStudentButton = new JButton("Add Student");
         JButton updateStudentButton = new JButton("Update Student");
-        JButton viewStudentsButton = new JButton("View Students");
+        JButton viewStudentDetailsButton = new JButton("View Student Details");
         JButton addCourseButton = new JButton("Add Course");
         JButton enrollStudentButton = new JButton("Enroll Student");
         JButton assignGradeButton = new JButton("Assign Grade");
 
         buttonPanel.add(addStudentButton);
         buttonPanel.add(updateStudentButton);
-        buttonPanel.add(viewStudentsButton);
+        buttonPanel.add(viewStudentDetailsButton);
         buttonPanel.add(addCourseButton);
         buttonPanel.add(enrollStudentButton);
         buttonPanel.add(assignGradeButton);
@@ -58,18 +57,15 @@ public class StudentManagementGUI extends JFrame {
         dropdownPanel.add(courseComboBox);
         add(dropdownPanel, BorderLayout.SOUTH);
 
-        // Tables for Students and Courses
-        studentTable = new JTable();
-        courseTable = new JTable();
-        JPanel tablePanel = new JPanel(new GridLayout(1, 2));
-        tablePanel.add(new JScrollPane(studentTable));
-        tablePanel.add(new JScrollPane(courseTable));
-        add(tablePanel, BorderLayout.CENTER);
+        // Table for Student Details
+        studentDetailsTable = new JTable();
+        JScrollPane tableScrollPane = new JScrollPane(studentDetailsTable);
+        add(tableScrollPane, BorderLayout.CENTER);
 
         // Event Handlers
         addStudentButton.addActionListener(e -> addStudent());
         updateStudentButton.addActionListener(e -> updateStudent());
-        viewStudentsButton.addActionListener(e -> viewStudents());
+        viewStudentDetailsButton.addActionListener(e -> viewStudentDetails());
         addCourseButton.addActionListener(e -> addCourse());
         enrollStudentButton.addActionListener(e -> enrollStudent());
         assignGradeButton.addActionListener(e -> assignGrade());
@@ -81,11 +77,12 @@ public class StudentManagementGUI extends JFrame {
     private void addStudent() {
         String studentId = JOptionPane.showInputDialog(this, "Enter Student ID:");
         String name = JOptionPane.showInputDialog(this, "Enter Student Name:");
-        if (studentId != null && name != null) {
-            dataStorage.addStudent(new Student(studentId, name));
-            outputArea.append("Student Added: " + studentId + " - " + name + "\n");
+        String email = JOptionPane.showInputDialog(this, "Enter Student Email:");
+        String major = JOptionPane.showInputDialog(this, "Enter Student Major:");
+        if (studentId != null && name != null && email != null && major != null) {
+            dataStorage.addStudent(new Student(studentId, name, email, major));
+            outputArea.append("Student Added: " + studentId + " - " + name + " - " + email + " - " + major + "\n");
             refreshDropdowns();
-            refreshTables();
         }
     }
 
@@ -95,11 +92,14 @@ public class StudentManagementGUI extends JFrame {
             Student student = findStudentById(studentId);
             if (student != null) {
                 String newName = JOptionPane.showInputDialog(this, "Enter New Name:");
-                if (newName != null) {
+                String newEmail = JOptionPane.showInputDialog(this, "Enter New Email:");
+                String newMajor = JOptionPane.showInputDialog(this, "Enter New Major:");
+                if (newName != null && newEmail != null && newMajor != null) {
                     student.setName(newName);
-                    outputArea.append("Student Updated: " + studentId + " - " + newName + "\n");
+                    student.setEmail(newEmail);
+                    student.setMajor(newMajor);
+                    outputArea.append("Student Updated: " + studentId + " - " + newName + " - " + newEmail + " - " + newMajor + "\n");
                     refreshDropdowns();
-                    refreshTables();
                 }
             } else {
                 JOptionPane.showMessageDialog(this, "Student not found!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -107,12 +107,33 @@ public class StudentManagementGUI extends JFrame {
         }
     }
 
-    private void viewStudents() {
-        outputArea.setText(""); // Clear previous output
-        for (Student student : dataStorage.getStudents()) {
-            outputArea.append(student.toString() + "\n");
-            for (Map.Entry<Course, String> entry : student.getEnrolledCourses().entrySet()) {
-                outputArea.append("  Enrolled in: " + entry.getKey() + ", Grade: " + entry.getValue() + "\n");
+    private void viewStudentDetails() {
+        String selectedStudent = (String) studentComboBox.getSelectedItem();
+        if (selectedStudent != null) {
+            // Extract student ID from the selected item
+            String studentId = selectedStudent.split(" - ")[0];
+            Student student = findStudentById(studentId);
+            if (student != null) {
+                // Display student details in the table
+                String[] columns = {"Student ID", "Student Name", "Email", "Major", "Course ID", "Course Name", "Grade"};
+                Object[][] data = new Object[student.getEnrolledCourses().size()][7];
+                int index = 0;
+                for (Map.Entry<Course, String> entry : student.getEnrolledCourses().entrySet()) {
+                    Course course = entry.getKey();
+                    String grade = entry.getValue();
+                    data[index][0] = student.getStudentId();
+                    data[index][1] = student.getName();
+                    data[index][2] = student.getEmail();
+                    data[index][3] = student.getMajor();
+                    data[index][4] = course.getCourseId();
+                    data[index][5] = course.getCourseName();
+                    data[index][6] = grade;
+                    index++;
+                }
+                studentDetailsTable.setModel(new javax.swing.table.DefaultTableModel(data, columns));
+                outputArea.append("Displaying details for Student: " + studentId + "\n");
+            } else {
+                JOptionPane.showMessageDialog(this, "Student not found!", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -124,20 +145,21 @@ public class StudentManagementGUI extends JFrame {
             dataStorage.addCourse(new Course(courseId, courseName));
             outputArea.append("Course Added: " + courseId + " - " + courseName + "\n");
             refreshDropdowns();
-            refreshTables();
         }
     }
 
     private void enrollStudent() {
-        String studentId = (String) studentComboBox.getSelectedItem();
-        String courseId = (String) courseComboBox.getSelectedItem();
-        if (studentId != null && courseId != null) {
+        String selectedStudent = (String) studentComboBox.getSelectedItem();
+        String selectedCourse = (String) courseComboBox.getSelectedItem();
+        if (selectedStudent != null && selectedCourse != null) {
+            // Extract student ID and course ID from the selected items
+            String studentId = selectedStudent.split(" - ")[0];
+            String courseId = selectedCourse.split(" - ")[0];
             Student student = findStudentById(studentId);
             Course course = findCourseById(courseId);
             if (student != null && course != null) {
                 student.enrollCourse(course);
                 outputArea.append("Student " + studentId + " enrolled in " + courseId + "\n");
-                refreshTables();
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid Student ID or Course ID", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -145,16 +167,18 @@ public class StudentManagementGUI extends JFrame {
     }
 
     private void assignGrade() {
-        String studentId = (String) studentComboBox.getSelectedItem();
-        String courseId = (String) courseComboBox.getSelectedItem();
+        String selectedStudent = (String) studentComboBox.getSelectedItem();
+        String selectedCourse = (String) courseComboBox.getSelectedItem();
         String grade = JOptionPane.showInputDialog(this, "Enter Grade:");
-        if (studentId != null && courseId != null && grade != null) {
+        if (selectedStudent != null && selectedCourse != null && grade != null) {
+            // Extract student ID and course ID from the selected items
+            String studentId = selectedStudent.split(" - ")[0];
+            String courseId = selectedCourse.split(" - ")[0];
             Student student = findStudentById(studentId);
             Course course = findCourseById(courseId);
             if (student != null && course != null) {
                 student.assignGrade(course, grade);
                 outputArea.append("Grade " + grade + " assigned to " + studentId + " for " + courseId + "\n");
-                refreshTables();
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid Student ID or Course ID", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -165,33 +189,13 @@ public class StudentManagementGUI extends JFrame {
         studentComboBox.removeAllItems();
         courseComboBox.removeAllItems();
         for (Student student : dataStorage.getStudents()) {
-            studentComboBox.addItem(student.getStudentId());
+            // Add both student ID and name to the dropdown
+            studentComboBox.addItem(student.getStudentId() + " - " + student.getName());
         }
         for (Course course : dataStorage.getCourses()) {
-            courseComboBox.addItem(course.getCourseId());
+            // Add both course ID and name to the dropdown
+            courseComboBox.addItem(course.getCourseId() + " - " + course.getCourseName());
         }
-    }
-
-    private void refreshTables() {
-        // Refresh Student Table
-        String[] studentColumns = {"Student ID", "Name"};
-        Object[][] studentData = new Object[dataStorage.getStudents().size()][2];
-        for (int i = 0; i < dataStorage.getStudents().size(); i++) {
-            Student student = dataStorage.getStudents().get(i);
-            studentData[i][0] = student.getStudentId();
-            studentData[i][1] = student.getName();
-        }
-        studentTable.setModel(new javax.swing.table.DefaultTableModel(studentData, studentColumns));
-
-        // Refresh Course Table
-        String[] courseColumns = {"Course ID", "Course Name"};
-        Object[][] courseData = new Object[dataStorage.getCourses().size()][2];
-        for (int i = 0; i < dataStorage.getCourses().size(); i++) {
-            Course course = dataStorage.getCourses().get(i);
-            courseData[i][0] = course.getCourseId();
-            courseData[i][1] = course.getCourseName();
-        }
-        courseTable.setModel(new javax.swing.table.DefaultTableModel(courseData, courseColumns));
     }
 
     private Student findStudentById(String studentId) {
